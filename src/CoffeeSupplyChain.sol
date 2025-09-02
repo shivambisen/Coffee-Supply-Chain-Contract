@@ -5,7 +5,7 @@ import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/utils/Counters.sol";
-import "../lib/types/BatchTypes.sol";
+import "./types/BatchTypes.sol";
 
 /// @title CoffeeSupplyChain
 /// @notice NFT-based batch tokens with role-protected stage appends and immutable history

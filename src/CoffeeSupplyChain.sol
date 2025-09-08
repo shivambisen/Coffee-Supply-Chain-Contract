@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.20;
 
+import "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import "@openzeppelin/contracts/token/ERC721/extensions/ERC721URIStorage.sol";
 import "@openzeppelin/contracts/access/AccessControl.sol";
 import "@openzeppelin/contracts/access/Ownable.sol";
@@ -9,21 +10,21 @@ import "./types/BatchTypes.sol";
 
 /// @title CoffeeSupplyChain
 /// @notice NFT-based batch tokens with role-protected stage appends and immutable history
-contract CoffeeSupplyChain is ERC721URIStorage, AccessControl, Ownable {
+contract CoffeeSupplyChain is ERC721, ERC721URIStorage, AccessControl, Ownable {
     using Counters for Counters.Counter;
     using BatchTypes for *;
 
     Counters.Counter private _batchIdCounter;
 
     // Roles
-    bytes32 public constant FARMER_ROLE     = keccak256("FARMER_ROLE");
-    bytes32 public constant CURER_ROLE      = keccak256("CURER_ROLE");
-    bytes32 public constant MILLER_ROLE     = keccak256("MILLER_ROLE");
-    bytes32 public constant ROASTER_ROLE    = keccak256("ROASTER_ROLE");
-    bytes32 public constant PACKAGER_ROLE   = keccak256("PACKAGER_ROLE");
-    bytes32 public constant DISTRIBUTOR_ROLE= keccak256("DISTRIBUTOR_ROLE");
-    bytes32 public constant PAUSER_ROLE     = keccak256("PAUSER_ROLE");
-    bytes32 public constant MINTER_ROLE     = keccak256("MINTER_ROLE"); // optional separate minter
+    bytes32 public constant FARMER_ROLE      = keccak256("FARMER_ROLE");
+    bytes32 public constant CURER_ROLE       = keccak256("CURER_ROLE");
+    bytes32 public constant MILLER_ROLE      = keccak256("MILLER_ROLE");
+    bytes32 public constant ROASTER_ROLE     = keccak256("ROASTER_ROLE");
+    bytes32 public constant PACKAGER_ROLE    = keccak256("PACKAGER_ROLE");
+    bytes32 public constant DISTRIBUTOR_ROLE = keccak256("DISTRIBUTOR_ROLE");
+    bytes32 public constant PAUSER_ROLE      = keccak256("PAUSER_ROLE");
+    bytes32 public constant MINTER_ROLE      = keccak256("MINTER_ROLE"); // optional separate minter
 
     // Batch core metadata
     mapping(uint256 => BatchTypes.BatchCore) private _batches;
@@ -188,8 +189,13 @@ contract CoffeeSupplyChain is ERC721URIStorage, AccessControl, Ownable {
     /// -------------------------
     /// Overrides for safety / transfer events
     /// -------------------------
-    function _beforeTokenTransfer(address from, address to, uint256 tokenId) internal override {
-        super._beforeTokenTransfer(from, to, tokenId);
+    /// Note: OpenZeppelin's ERC721 now has a 4-arg _beforeTokenTransfer (batch-aware).
+    function _beforeTokenTransfer(address from, address to, uint256 firstTokenId, uint256 batchSize)
+        internal
+        virtual
+        override(ERC721)
+    {
+        super._beforeTokenTransfer(from, to, firstTokenId, batchSize);
         // you can hook in custody changes here (emit extra logs), but ERC721 transfer already signals ownership change
     }
 
@@ -201,5 +207,35 @@ contract CoffeeSupplyChain is ERC721URIStorage, AccessControl, Ownable {
         delete _batches[tokenId];
         delete _history[tokenId];
         emit BatchBurned(tokenId, msg.sender);
+    }
+
+    /// -----------------------------------------------------------------------
+    /// Required overrides for multiple inheritance
+    /// -----------------------------------------------------------------------
+
+    /// @dev AccessControl and ERC721 both implement supportsInterface
+    function supportsInterface(bytes4 interfaceId)
+        public
+        view
+        virtual
+        override(ERC721, ERC721URIStorage, AccessControl)
+        returns (bool)
+    {
+        return super.supportsInterface(interfaceId);
+    }
+
+    /// @dev ERC721URIStorage overrides _burn and tokenURI; explicit overrides required
+    function _burn(uint256 tokenId) internal virtual override(ERC721, ERC721URIStorage) {
+        super._burn(tokenId);
+    }
+
+    function tokenURI(uint256 tokenId)
+        public
+        view
+        virtual
+        override(ERC721, ERC721URIStorage)
+        returns (string memory)
+    {
+        return ERC721URIStorage.tokenURI(tokenId);
     }
 }

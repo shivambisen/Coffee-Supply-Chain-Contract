@@ -130,10 +130,12 @@ forge test
 anvil
 ```
 
-Then, in a separate terminal:
+Then, read test script first and add your credentials locally
+
+after replacing with your address run 
 
 ```bash
-forge create src/CoffeeSupplyChain.sol:CoffeeSupplyChain --rpc-url http://127.0.0.1:8545 --private-key <PRIVATE_KEY>
+ chmod +x ./test_flow.sh
 ```
 
 ---

@@ -1,66 +1,152 @@
-## Foundry
+# CoffeeSupplyChain ☕️
 
-**Foundry is a blazing fast, portable and modular toolkit for Ethereum application development written in Rust.**
+## Overview
 
-Foundry consists of:
+The **CoffeeSupplyChain** smart contract is an end-to-end tracking and tokenization system for coffee supply chains, built on Ethereum using Solidity. It leverages **ERC721 Non-Fungible Tokens (NFTs)** to represent unique batches of coffee beans, ensuring transparency, authenticity, and traceability from farm to consumer.
 
--   **Forge**: Ethereum testing framework (like Truffle, Hardhat and DappTools).
--   **Cast**: Swiss army knife for interacting with EVM smart contracts, sending transactions and getting chain data.
--   **Anvil**: Local Ethereum node, akin to Ganache, Hardhat Network.
--   **Chisel**: Fast, utilitarian, and verbose solidity REPL.
+The contract combines:
 
-## Documentation
+* **ERC721URIStorage**: To mint NFTs that represent unique coffee batches.
+* **AccessControl**: To manage roles (farmer, roaster, distributor, retailer, and consumer).
+* **Custom supply chain logic**: To define the lifecycle of coffee batches.
 
-https://book.getfoundry.sh/
+---
 
-## Usage
+## Features
 
-### Build
+* Minting NFTs for each coffee batch with metadata.
+* Role-based permissions:
 
-```shell
-$ forge build
+  * **Farmer**: Creates new coffee batch NFTs.
+  * **Roaster**: Updates roasting details.
+  * **Distributor**: Manages logistics and shipping.
+  * **Retailer**: Marks batches for sale.
+  * **Consumer**: Can purchase and verify coffee batch NFTs.
+* Lifecycle tracking:
+
+  * Farm ➝ Roaster ➝ Distributor ➝ Retailer ➝ Consumer
+* Metadata storage (IPFS/JSON URI) for transparency.
+
+---
+
+## Contract Flow Example
+
+### 1. Farmer creates a batch
+
+```solidity
+coffeeSupplyChain.mintBatch(farmerAddress, "ipfs://QmBatchMetadataHash");
 ```
 
-### Test
+* Mints a new NFT for the coffee batch.
+* Links metadata stored in IPFS (origin, harvest date, quality details).
 
-```shell
-$ forge test
+### 2. Roaster updates batch
+
+```solidity
+coffeeSupplyChain.updateRoasting(batchId, "Medium Roast", "2025-09-01");
 ```
 
-### Format
+* Adds roasting information to the batch.
 
-```shell
-$ forge fmt
+### 3. Distributor ships batch
+
+```solidity
+coffeeSupplyChain.updateDistribution(batchId, "Shipment #12345", "2025-09-03");
 ```
 
-### Gas Snapshots
+* Marks the logistics details of the batch.
 
-```shell
-$ forge snapshot
+### 4. Retailer lists for sale
+
+```solidity
+coffeeSupplyChain.updateRetail(batchId, "CoffeeHouse Store", 20 ether);
 ```
 
-### Anvil
+* Sets retail store and price.
 
-```shell
-$ anvil
+### 5. Consumer purchases
+
+```solidity
+coffeeSupplyChain.purchaseBatch{value: 20 ether}(batchId);
 ```
 
-### Deploy
+* Transfers NFT ownership to the consumer.
+* Marks the batch as consumed.
 
-```shell
-$ forge script script/Counter.s.sol:CounterScript --rpc-url <your_rpc_url> --private-key <your_private_key>
+---
+
+## Roles
+
+* `DEFAULT_ADMIN_ROLE`: Can assign/revoke roles.
+* `FARMER_ROLE`: Creates new coffee batches.
+* `ROASTER_ROLE`: Updates roasting information.
+* `DISTRIBUTOR_ROLE`: Updates distribution/shipping details.
+* `RETAILER_ROLE`: Lists coffee for sale.
+* `CONSUMER_ROLE`: Purchases coffee.
+
+---
+
+## Example Metadata (IPFS JSON)
+
+```json
+{
+  "name": "Ethiopian Arabica Coffee Batch #001",
+  "description": "Single origin coffee beans harvested in Ethiopia, 2025 season.",
+  "origin": "Yirgacheffe, Ethiopia",
+  "harvest_date": "2025-08-15",
+  "roast": "Medium",
+  "distributor": "Global Coffee Logistics",
+  "retailer": "CoffeeHouse Store",
+  "price": "20 ETH"
+}
 ```
 
-### Cast
+---
 
-```shell
-$ cast <subcommand>
+## How to Test
+
+### 1. Install Foundry
+
+```bash
+curl -L https://foundry.paradigm.xyz | bash
+foundryup
 ```
 
-### Help
+### 2. Build contract
 
-```shell
-$ forge --help
-$ anvil --help
-$ cast --help
+```bash
+forge build
 ```
+
+### 3. Run tests
+
+```bash
+forge test
+```
+
+### 4. Deploy locally
+
+```bash
+anvil
+```
+
+Then, in a separate terminal:
+
+```bash
+forge create src/CoffeeSupplyChain.sol:CoffeeSupplyChain --rpc-url http://127.0.0.1:8545 --private-key <PRIVATE_KEY>
+```
+
+---
+
+## Future Enhancements
+
+* Integration with **oracles** for real-world logistics.
+* Consumer-facing dApp for batch scanning.
+* Expanded metadata (sustainability metrics, certifications).
+* Multi-chain deployment for scalability.
+
+---
+
+## License
+
+MIT License © 2025 Shivam Bisen

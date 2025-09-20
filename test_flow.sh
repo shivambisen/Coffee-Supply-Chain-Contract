@@ -8,13 +8,13 @@
 RPC_URL="http://127.0.0.1:8545"
 
 # run `anvil` to get private key and other test account details
-PRIVATE_KEY="0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80"
+PRIVATE_KEY="0x59c6995e998f97a5a0044966f0945389dc9e86dae88c7a8412f4603b6b78690d"
 # replace it with your own private key 
 
 # Contract deployed address
 # use this command to deploy the contract and get the address
 # forge script script/Deploy.s.sol:DeployScript \ --rpc-url http://127.0.0.1:8545 \ --private-key 0xac0974bec39a17e36ba4a6b4d238ff944bacb478cbed5efcae784d7bf4f2ff80 \ --broadcast
-CONTRACT_ADDRESS="0x5FbDB2315678afecb367f032d93F642f64180aa3"
+CONTRACT_ADDRESS="0x8464135c8F25Da09e49BC8782676a84730C318bC"
 # replace it with your own deployed contract address
 
 # Testing account (must match private key)
@@ -117,16 +117,92 @@ $STAGE_DISTRIBUTED \
 # Fetch batch core info
 # -----------------------------
 echo "Fetching batch core info..."
-cast call $CONTRACT_ADDRESS \
+core=$(cast call $CONTRACT_ADDRESS \
 "getBatchCore(uint256)(tuple(uint256,string,string,address,uint256,uint8))" \
 $BATCH_ID \
---rpc-url $RPC_URL
+--rpc-url $RPC_URL)
+
+echo "$core"
+
 
 # Fetch batch history
 echo "Fetching batch history..."
-cast call $CONTRACT_ADDRESS \
+history=$(cast call $CONTRACT_ADDRESS \
 "getHistory(uint256)(tuple(uint8,string,uint256,address)[])" \
 $BATCH_ID \
---rpc-url $RPC_URL
+--rpc-url $RPC_URL)
+echo "$history"
 
-echo "🔹 CoffeeSupplyChain test flow completed"
+# Stage names mapping
+stages=(Harvested Cured Milled Roasted Packaged Distributed)
+
+# -------------------------
+# Parse core safely using regex
+# -------------------------
+# Remove parentheses
+core_clean=$(echo "$core" | sed -E 's/^\(|\)$//g')
+
+# Extract values with regex
+batchId=$(echo "$core_clean" | sed -E 's/^([0-9]+),.*/\1/')
+origin=$(echo "$core_clean" | grep -oP '"\K[^"]*(?=")' | sed -n '1p')
+variety=$(echo "$core_clean" | grep -oP '"\K[^"]*(?=")' | sed -n '2p')
+farmer=$(echo "$core_clean" | sed -E 's/.*(0x[0-9a-fA-F]{40}).*/\1/')
+harvestTimestamp=$(echo "$core_clean" | grep -oP '(?<=, )\d{9,10}(?= \[|, [0-9])' | head -n1)
+currentStage=$(echo "$core_clean" | grep -oP ',\s*([0-9]+)$' | tr -d ', ')
+
+core_json=$(cat <<EOF
+{
+  "batchId": $batchId,
+  "origin": "$origin",
+  "variety": "$variety",
+  "farmer": "$farmer",
+  "harvestTimestamp": $harvestTimestamp,
+  "currentStage": "$currentStage"
+}
+EOF
+)
+
+# -------------------------
+# Parse history
+# -------------------------
+history_json="["
+history_entries=$(echo "$history" | sed -E 's/^\[|\]$//g' | sed 's/),/)\n/g')
+
+while read -r entry; do
+  entry=$(echo "$entry" | sed -E 's/^\(|\)$//g')
+  stageIdx=$(echo "$entry" | awk -F',' '{print $1}')
+  ipfsHash=$(echo "$entry" | grep -oP '"\K[^"]*(?=")')
+  ts=$(echo "$entry" | awk -F',' '{print $3}' | tr -d ' ')
+  actor=$(echo "$entry" | awk -F',' '{print $4}' | tr -d ' ')
+  stageName=${stages[$stageIdx]}
+
+  history_json+=$(cat <<EOF
+{
+  "stage": "$stageName",
+  "metadataIpfsHash": "$ipfsHash",
+  "timestamp": $ts,
+  "actor": "$actor"
+},
+EOF
+)
+done <<< "$history_entries"
+
+# Remove trailing comma and close array
+history_json=$(echo "$history_json" | sed '$ s/,$//')
+history_json+="]"
+
+# -------------------------
+# Save JSON
+# -------------------------
+json_file="batch_${BATCH_ID}.json"
+cat <<EOF > "$json_file"
+{
+  "core": $core_json,
+  "history": $history_json
+}
+EOF
+
+echo "✅ Saved structured JSON to $json_file"
+
+
+

@@ -124,7 +124,7 @@ contract CoffeeSupplyChain is ERC721, ERC721URIStorage, AccessControl, Ownable {
 
         // role checks per stage
         if (stage == BatchTypes.Stage.Cured) {
-            require(hasRole(CURER_ROLE, msg.sender), "Not a curer");
+            require(hasRole(CURER_ROLE, msg.sender), "Not a cuer");
         } else if (stage == BatchTypes.Stage.Milled) {
             require(hasRole(MILLER_ROLE, msg.sender), "Not a miller");
         } else if (stage == BatchTypes.Stage.Roasted) {
